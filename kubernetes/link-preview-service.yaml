@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    tier: backend
+    app: link-preview-service
+  name: link-preview-service-deployment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: link-preview-service
+  template:
+    metadata:
+      labels:
+        tier: backend
+        app: link-preview-service
+    spec:
+      containers:
+      - env:
+        # TODO: set image tag
+        image: ampnet/link-preview-service:latest
+        imagePullPolicy: Always
+        name: link-preview-service
+        ports:
+        - containerPort: 8126
+        readinessProbe:
+          httpGet:
+             path: /health
+             port: 8126
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 5
+        resources: 
+          limits:
+            memory: 256Mi
+          requests: 
+            memory: 64Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      imagePullSecrets:
+      - name: myregistrykey
+      restartPolicy: Always
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: backend
+    app: link-preview-service
+  name: link-preview-service
+spec:
+  selector:
+    app: link-preview-service
+  ports:
+  - name: "8126"
+    port: 8126
+    targetPort: 8126
+  type: NodePort
+status:
+  loadBalancer: {}

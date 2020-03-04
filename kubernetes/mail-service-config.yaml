@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mail-service
+data:
+  application.properties: |
+    management.endpoint.prometheus.enabled=true
+    management.metrics.tags.application=${spring.application.name}
+
+    spring.main.banner-mode=off
+
+    grpc.client.user-service.address=static://user-service:8225
+    grpc.client.user-service.negotiationType=PLAINTEXT

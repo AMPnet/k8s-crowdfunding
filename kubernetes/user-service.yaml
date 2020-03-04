@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    tier: backend
+    app: user-service
+  name: user-service-deployment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        tier: backend
+        app: user-service
+    spec:
+      containers:
+      - env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: user-service.db.username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: user-service.db.password
+        - name: JWT
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: jwt
+        - name: IDENTYUM_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: user-service.identyum.username
+        - name: IDENTYUM_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: user-service.identyum.password
+        - name: IDENTYUM_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: user-service.identyum.key
+        # TODO: set image tag
+        image: ampnet/user-service:latest
+        imagePullPolicy: Always
+        name: user-service
+        ports:
+        - containerPort: 8125
+        readinessProbe:
+          httpGet:
+             path: /actuator/health
+             port: 8125
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
+        resources: 
+          limits:
+            memory: 1.5Gi
+          requests: 
+            memory: 512Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: config
+        configMap:        
+          name: user-service
+      imagePullSecrets:
+      - name: myregistrykey
+      restartPolicy: Always
+      serviceAccountName: service-account
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: backend
+    app: user-service
+  name: user-service-api
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/actuator/prometheus'
+spec:
+  selector:
+    app: user-service
+  ports:
+  - name: "8125"
+    port: 8125
+    targetPort: 8125
+  type: NodePort  # TODO: Remove
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels:
+    tier: backend
+    app: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - name: "8225"
+    port: 8225

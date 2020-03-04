@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    tier: backend
+    app: mail-service
+  name: mail-service-deployment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: mail-service
+  template:
+    metadata:
+      labels:
+        tier: backend
+        app: mail-service
+    spec:
+      containers:
+      - env:
+        - name: spring.profiles.active
+          value: prod
+        - name: MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: mail-service.mail.username
+        - name: MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: mail-service.mail.password
+        # TODO: set image tag
+        image: ampnet/mail-service:latest
+        imagePullPolicy: Always
+        name: mail-service
+        ports:
+        - containerPort: 8127
+        readinessProbe:
+          httpGet:
+             path: /actuator/health
+             port: 8127
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 5
+        resources: 
+          limits:
+            memory: 768Mi
+          requests: 
+            memory: 128Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: config
+        configMap:        
+          name: mail-service
+      imagePullSecrets:
+      - name: myregistrykey
+      restartPolicy: Always
+      serviceAccountName: service-account
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: backend
+    app: mail-service
+  name: mail-service-api
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/actuator/prometheus'
+spec:
+  selector:
+    app: mail-service
+  ports:
+  - name: "mail-service-api"
+    port: 8127
+    targetPort: 8127
+  type: NodePort  # TODO: Remove
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mail-service
+  labels:
+    tier: backend
+    app: mail-service
+spec:
+  selector:
+    app: mail-service
+  ports:
+  - name: "mail-service-grpc"
+    port: 8227

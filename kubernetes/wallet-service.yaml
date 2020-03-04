@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    tier: backend
+    app: wallet-service
+  name: wallet-service-deployment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: wallet-service
+  template:
+    metadata:
+      labels:
+        tier: backend
+        app: wallet-service
+    spec:
+      containers:
+      - env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: wallet-service.db.username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: wallet-service.db.password
+        - name: JWT
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: jwt
+        - name: AWS_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: aws-access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: aws-secret-access-key
+        # TODO: set image tag
+        image: ampnet/wallet-service:latest
+        imagePullPolicy: Always
+        name: wallet-service
+        ports:
+        - containerPort: 8128
+        readinessProbe:
+          httpGet:
+             path: /actuator/health
+             port: 8128
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
+        resources: 
+          limits:
+            memory: 1.5Gi
+          requests: 
+            memory: 512Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: config
+        configMap:        
+          name: wallet-service
+      imagePullSecrets:
+      - name: myregistrykey
+      restartPolicy: Always
+      serviceAccountName: service-account
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: backend
+    app: wallet-service
+  name: wallet-service-api
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/actuator/prometheus'
+spec:
+  selector:
+    app: wallet-service
+  ports:
+  - name: "8128"
+    port: 8128
+    targetPort: 8128
+  type: NodePort  # TODO: Remove
+status:
+  loadBalancer: {}

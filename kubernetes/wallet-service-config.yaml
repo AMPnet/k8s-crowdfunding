@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-service
+data:
+  application.properties: |-
+    server.port=8128
+    management.endpoints.web.exposure.include=info,health,prometheus
+    management.endpoint.prometheus.enabled=false
+
+    spring.application.name = wallet-service
+
+    spring.datasource.url=jdbc:postgresql://db:5432/wallet_service
+    spring.datasource.username=${DB_USERNAME}
+    spring.datasource.password=${DB_PASSWORD:password}
+    spring.datasource.driver-class-name = org.postgresql.Driver
+
+    spring.jpa.open-in-view = false
+    spring.jpa.show-sql=false
+    spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+    spring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults = false
+    spring.jpa.properties.hibernate.dialect = org.hibernate.dialect.PostgreSQLDialect
+    spring.jpa.properties.hibernate.hbm2ddl.auto = validate
+    spring.jpa.hibernate.ddl-auto = update
+
+    spring.flyway.enabled=true
+
+    # gRPC config
+    grpc.client.blockchain-service.address=static://blockchain-service:8224
+    grpc.client.blockchain-service.negotiationType=PLAINTEXT
+    grpc.client.user-service.address=static://user-service:8225
+    grpc.client.user-service.negotiationType=PLAINTEXT
+    grpc.client.project-service.address=static://project-service:8223
+    grpc.client.project-service.negotiationType=PLAINTEXT
+
+    spring.servlet.multipart.max-file-size=10MB
+    spring.servlet.multipart.max-request-size=10MB
+
+    # Custom properties
+    com.ampnet.walletservice.jwt.signing-key=${JWT}
+
+    com.ampnet.walletservice.file-storage.url=https://ams3.digitaloceanspaces.com
+    com.ampnet.walletservice.file-storage.bucket=ampnet-storage
+    com.ampnet.walletservice.file-storage.folder=production

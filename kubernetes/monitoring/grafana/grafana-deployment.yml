@@ -1,0 +1,45 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: grafana-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        tier: monitoring
+        app: grafana
+      name: grafana-server
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:5.2.4
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: grafana-config-volume
+              mountPath: /etc/grafana/provisioning/datasources/
+      volumes:
+        - name: grafana-config-volume
+          configMap:
+            defaultMode: 420
+            name: grafana-server-conf
+
+      #   - name: prometheus-storage-volume
+      #     emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: monitoring
+    app: grafana
+  name: grafana-service
+spec:
+  selector:
+    app: grafana
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      # nodePort: 30000

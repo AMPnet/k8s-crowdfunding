@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  # Default
+  # backend:
+  #   serviceName: default-http-backend
+  #   servicePort: 80
+  rules:
+  - host: api.ampnet.io
+    http:
+      paths:
+      - path: /project_api
+        backend:
+          serviceName: project-service
+          servicePort: 8123
+      - path: /user_api
+        backend:
+          serviceName: user-service
+          servicePort: 8125
+      - path: /link_api
+        backend:
+          serviceName: link-preview-service
+          servicePort: 8126
+      - path: /wallet_api
+        backend:
+          serviceName: wallet-service
+          servicePort: 8128

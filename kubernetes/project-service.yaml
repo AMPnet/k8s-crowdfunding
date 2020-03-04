@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    tier: backend
+    app: project-service
+  name: project-service-deployment
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: project-service
+  template:
+    metadata:
+      labels:
+        tier: backend
+        app: project-service
+    spec:
+      containers:
+      - env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: project-service.db.username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: project-service.db.password
+        - name: JWT
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: jwt
+        - name: AWS_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: aws-access-key
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: service-secret
+              key: aws-secret-access-key
+        # TODO: set image tag
+        image: ampnet/project-service:latest
+        imagePullPolicy: Always
+        name: project-service
+        ports:
+        - containerPort: 8123
+        readinessProbe:
+          httpGet:
+             path: /actuator/health
+             port: 8123
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
+        resources: 
+          limits:
+            memory: 1.5Gi
+          requests: 
+            memory: 512Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: config
+          mountPath: /config
+      volumes:
+      - name: varlog
+        emptyDir: {}
+      - name: config
+        configMap:        
+          name: project-service
+      imagePullSecrets:
+      - name: myregistrykey
+      restartPolicy: Always
+      serviceAccountName: service-account
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    tier: backend
+    app: project-service
+  name: project-service-api
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/path: '/actuator/prometheus'
+spec:
+  selector:
+    app: project-service
+  ports:
+  - name: "8123"
+    port: 8123
+    targetPort: 8123
+  type: NodePort  # TODO: Remove
+status:
+  loadBalancer: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-service
+  labels:
+    tier: backend
+    app: project-service
+spec:
+  selector:
+    app: project-service
+  ports:
+  - name: "8223"
+    port: 8223
